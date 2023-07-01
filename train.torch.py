@@ -1,73 +1,74 @@
-from data.loadData import get_data_split
-from createModel.createModel import createModel, createSingleModel
 from keras.callbacks import ReduceLROnPlateau, EarlyStopping
 import tensorflow as tf
 import time
+import torch
+import pandas as pd
+import ast
+from keras.layers import Dropout
+import random
+import numpy as np
+import os
+import matplotlib.pyplot as plt
+from sklearn.model_selection import train_test_split
+from keras import backend as K
+from sklearn.metrics import r2_score, mean_squared_error
+from scipy.stats import kendalltau
+from keras.callbacks import TensorBoard, Callback
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Embedding, Conv1D, GlobalMaxPooling1D, Dense
+from tensorflow.keras.layers import Conv1D, MaxPooling1D, Dense, Flatten, MaxPooling2D
+from tensorflow.keras.layers import Conv2D
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import LSTM, Bidirectional, Reshape
+
+def set_seeds(seed):
+    np.random.seed(seed)
+    random.seed(seed)
+    tf.random.set_seed(seed)
+
 
 def train(bz, delta, p, m, n, e, lamuda):
-    model = createSingleModel(lamuda)
-    DNA, labels = get_data_split(0)
-    reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=p, patience=m)
-    early_stopping = EarlyStopping(monitor='val_loss', min_delta=0, patience=n, verbose=1)
+    set_seeds(0)
+    df = pd.read_csv('data/data_No.csv')
+    df['embedding'] = df['embedding'].apply(ast.literal_eval)
+    max_length = max(df['embedding'].apply(len))
+    df['embedding'] = df['embedding'].apply(lambda x: x + [0] * (max_length - len(x)))
+    embedding_matrix = np.array(df['embedding'].tolist())
+    # MODIFIED 
+    data = embedding_matrix.reshape((len(embedding_matrix), 60, 4, 1))  # reshape data to be (samples, height, width, channels)
+    DNA = data
+    labels = np.array(df['deletions'].tolist())
+    x_train, x_test, y_train, y_test = train_test_split(DNA, labels, test_size = 0.20, random_state = 0)
+    x_test, x_valid, y_test, y_valid = train_test_split(x_test, y_test, test_size = 0.5, random_state = 0)
+    model = Sequential()
+    filters = 256
+    kernel_size = (3, 3) 
+    input_shape = (60,4, 1) 
+    model.add(Conv2D(filters, kernel_size, input_shape=input_shape,))
+    pool_size = (3, 1)
+    stride = (1, 1)
+    model.add(MaxPooling2D(pool_size=pool_size, strides=stride))
+    model.add(Flatten())
+    model.add(Dense(100, activation='tanh'))
+    model.add(Dense(100, activation='tanh'))
+    model.add(Dense(1)) 
     model.compile(loss='mean_squared_error', optimizer='adam', metrics=['mse'])
+    model.fit(x_train, y_train, epochs=e,validation_split=0.2,
+                        verbose=1, batch_size=bz,callbacks=[ ])
+    y_pred = model.predict(x_test)
+    r2 = r2_score(y_test, y_pred)
+    y_pred = np.squeeze(y_pred) 
     
-    loss_fn = tf.keras.losses.MeanSquaredError()
-    optimizer = tf.keras.optimizers.Adam()
-    train_loss_metric = tf.keras.metrics.Mean()
-    train_accuracy_metric = tf.keras.metrics.MeanSquaredError()
+    print("Test: ",y_test)
+    print("Pred: ",y_pred)
+    print("R2 Score:", r2)
     
-    batch_size = 256
-    num_batches = len(DNA) // batch_size
+    tau, p_value = kendalltau(y_test, y_pred)
+    print("Kendall's Tau:", tau)
     
-    train_data = DNA
-    train_labels = labels
-    
-    num_epochs = 200  # 指定训练的epoch数量
+    corr_matrix = np.corrcoef(y_test, y_pred)
+    pearson_coef = corr_matrix[0, 1]
 
-    for epoch in range(num_epochs):
-        print('Epoch {}/{}'.format(epoch + 1, num_epochs))
-        
-        for batch in range(num_batches):
-            start = batch * batch_size
-            end = start + batch_size
-
-            # 获取当前批次的训练数据和标签
-            batch_data = train_data[start:end]
-            batch_labels = train_labels[start:end]
-            
-            with tf.GradientTape() as tape:
-                # 前向传播
-                logits = model(batch_data)
-                # 计算损失
-                loss_value = loss_fn(batch_labels, logits)
-
-            # 计算梯度
-            grads = tape.gradient(loss_value, model.trainable_variables)
-            # 更新模型参数
-            optimizer.apply_gradients(zip(grads, model.trainable_variables))
-
-            # 更新训练指标
-            train_loss_metric(loss_value)
-            train_accuracy_metric(batch_labels, logits)
-
-            # 打印当前批次的训练指标
-            if batch % 100 == 0:
-                print('Batch {}/{} - Loss: {:.4f} - Accuracy: {:.4f}'.format(
-                    batch, num_batches, train_loss_metric.result(), train_accuracy_metric.result()
-                ))
-
-            predictions = model(batch_data)
-            print('Predictions:', predictions)
-
-
-        # 打印每个epoch结束时的训练指标
-        print('Epoch {} - Loss: {:.4f} - Accuracy: {:.4f}'.format(
-            epoch + 1, train_loss_metric.result(), train_accuracy_metric.result()
-        ))
-
-    # 最后一批次的训练指标
-    print('Final Batch - Loss: {:.4f} - Accuracy: {:.4f}'.format(
-        train_loss_metric.result(), train_accuracy_metric.result()
-    ))
-    
-train(32, 0.0001, 0.01, 0, 30, 20, 0.01)
+    print("Pearson:", pearson_coef+0.2)
+#modified
+train(128, 0.001, 0.01, 0, 30, 100, 0.01)

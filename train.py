@@ -8,14 +8,18 @@ from sklearn.model_selection import train_test_split
 from keras import backend as K
 import keras
 from sklearn.metrics import r2_score, mean_squared_error
-
+import random
 from keras.callbacks import TensorBoard
 from keras.callbacks import Callback
 
+def set_seeds(seed):
+    np.random.seed(seed)
+    random.seed(seed)
+    tf.random.set_seed(seed)
+
  
-        
 def train(bz, delta, p, m, n, e, lamuda):
-    
+    set_seeds(0)
     model = createSingleModel(lamuda)
     model.summary()
     ###(train_data, train_labels), (test_data, test_labels) ,(valid_data,valid_labels)= 
@@ -40,4 +44,4 @@ def train(bz, delta, p, m, n, e, lamuda):
     print("R2 Score:", r2)
 
 
-train(32, 0.0001, 0.1, 0, 30, 20, 0.01)
+train(32, 0.0001, 0.1, 0, 30, 100, 0.01)

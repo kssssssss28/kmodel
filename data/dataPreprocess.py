@@ -4,6 +4,11 @@ import pandas as pd
 keydf = pd.read_csv('./sproutData.csv')
 splitedArr = []
 keydf.head()
+from transformers import AutoModel, AutoTokenizer
+import torch
+# Load the model and tokenizer
+model = AutoModel.from_pretrained("zhihan1996/DNABERT-2-117M")
+tokenizer = AutoTokenizer.from_pretrained("zhihan1996/DNABERT-2-117M")
 
 def positional_encoding(sequence_length, d_model):
     # 生成位置编码矩阵
@@ -65,25 +70,15 @@ def getPAM():
         for i, base in enumerate(seq):
             encoded_base = []
             encoded_base.extend(encoding_dict[base])
-            #encoded_base.append(position_encodings[i][0])
-            # if i > 30 and i < 36:
-            #     # 执行相应的操作
-            #     encoded_base.append(0)
-            # else:
-            #     # 执行其他操作
-            #     encoded_base.append(0)
-
             encoded_sequence.append(encoded_base)
 
 
         # 添加位置编码
-
-
         embedding.append(encoded_sequence)
 
     data['PAM'] = PAM
     data['embedding'] = embedding
-    data.to_csv('modified_with_embedding_no.csv', index=False)
+    data.to_csv('modified_with_embedding_NOPE.csv', index=False)
     return data
 
 addNewSplitedCol(3,3)
