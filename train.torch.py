@@ -45,10 +45,9 @@ def train(bz, delta, p, m, n, e, lamuda):
     kernel_size = (3, 3) 
     input_shape = (60,4, 1) 
     model.add(Conv2D(filters, kernel_size, input_shape=input_shape,))
-    pool_size = (3, 1)
-    stride = (1, 1)
-    model.add(MaxPooling2D(pool_size=pool_size, strides=stride))
+    model.add(Conv2D(filters, (2, 2), input_shape=input_shape)) 
     model.add(Flatten())
+    model.add(Dense(100, activation='tanh'))
     model.add(Dense(100, activation='tanh'))
     model.add(Dense(100, activation='tanh'))
     model.add(Dense(1)) 
@@ -68,7 +67,11 @@ def train(bz, delta, p, m, n, e, lamuda):
     
     corr_matrix = np.corrcoef(y_test, y_pred)
     pearson_coef = corr_matrix[0, 1]
-
-    print("Pearson:", pearson_coef+0.2)
+    print("Pearson:", pearson_coef)
+    comment = "(" + "del fre" + ")"
+    name = 'model' + str(pearson_coef) + comment + ".h5"
+    # 保存整个模型
+    print(name," is saved")
+    model.save(name)
 #modified
-train(128, 0.001, 0.01, 0, 30, 100, 0.01)
+train(512, 0.001, 0.01, 0, 30, 100, 0.01)
